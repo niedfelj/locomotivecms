@@ -2,6 +2,9 @@ class ContentType
 
   include Locomotive::Mongoid::Document
 
+  ## extensions ##
+  include Extensions::ContentType::ItemTemplate
+
   ## fields ##
   field :name
   field :description
@@ -70,6 +73,10 @@ class ContentType
     end
   end
 
+  def latest_updated_contents
+    self.contents.latest_updated.reject { |c| !c.persisted? }
+  end
+
   def ordered_contents(conditions = {})
     column = self.order_by.to_sym
 
@@ -82,7 +89,14 @@ class ContentType
         # convert alias (key) to name
         field = self.content_custom_fields.detect { |f| f._alias == key }
 
-        conditions_with_names[field._name.to_sym] = value
+        case field.kind.to_sym
+        when :category
+          if (category_item = field.category_items.where(:name => value).first).present?
+            conditions_with_names[field._name.to_sym] = category_item._id
+          end
+        else
+          conditions_with_names[field._name.to_sym] = value
+        end
       end
 
       self.contents.where(conditions_with_names)
@@ -93,8 +107,8 @@ class ContentType
     self.asc_order? ? list : list.reverse
   end
 
-  def sort_contents!(order)
-    order.split(',').each_with_index do |id, position|
+  def sort_contents!(ids)
+    ids.each_with_index do |id, position|
       self.contents.find(BSON::ObjectId(id))._position_in_list = position
     end
     self.save
@@ -117,7 +131,7 @@ class ContentType
 
   def normalize_slug
     self.slug = self.name.clone if self.slug.blank? && self.name.present?
-    self.slug.slugify! if self.slug.present?
+    self.slug.permalink! if self.slug.present?
   end
 
   def remove_uploaded_files # callbacks are not called on each content so we do it manually

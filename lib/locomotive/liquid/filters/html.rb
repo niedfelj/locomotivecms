@@ -3,18 +3,42 @@ module Locomotive
     module Filters
       module Html
 
-        # Write the link to a stylesheet resource
-        # input: url of the css file
-        def stylesheet_tag(input)
+        # Write the url to a stylesheet resource
+        # input: name of the css file
+        def stylesheet_url(input)
           return '' if input.nil?
 
-          unless input =~ /^(\/|http:)/
+          unless input =~ /^(\/|https?:)/
             input = asset_url("stylesheets/#{input}")
           end
 
           input = "#{input}.css" unless input.ends_with?('.css')
 
-          %{<link href="#{input}" media="screen" rel="stylesheet" type="text/css" />}
+          input
+        end
+
+        # Write the link to a stylesheet resource
+        # input: url of the css file
+        def stylesheet_tag(input, media = 'screen')
+          return '' if input.nil?
+
+          input = stylesheet_url(input)
+
+          %{<link href="#{input}" media="#{media}" rel="stylesheet" type="text/css" />}
+        end
+
+        # Write the url to javascript resource
+        # input: name of the javascript file
+        def javascript_url(input)
+          return '' if input.nil?
+
+          unless input =~ /^(\/|https?:)/
+            input = asset_url("javascripts/#{input}")
+          end
+
+          input = "#{input}.js" unless input.ends_with?('.js')
+
+          input
         end
 
         # Write the link to javascript resource
@@ -22,13 +46,9 @@ module Locomotive
         def javascript_tag(input)
           return '' if input.nil?
 
-          unless input =~ /^(\/|http:)/
-            input = asset_url("javascripts/#{input}")
-          end
+          input = javascript_url(input)
 
-          input = "#{input}.js" unless input.ends_with?('.js')
-
-           %{<script src="#{input}" type="text/javascript"></script>}
+          %{<script src="#{input}" type="text/javascript"></script>}
         end
 
         def theme_image_url(input)
@@ -38,7 +58,7 @@ module Locomotive
 
           asset_url(input)
         end
-        
+
         # Write a theme image tag
         # input: name of file including folder
         # example: 'about/myphoto.jpg' | theme_image # <img src="images/about/myphoto.jpg" />
@@ -82,13 +102,13 @@ module Locomotive
           previous_link = (if paginate['previous'].blank?
             "<span class=\"disabled prev_page\">#{previous_label}</span>"
           else
-            "<a href=\"#{paginate['previous']['url']}\" class=\"prev_page\">#{previous_label}</a>"
+            "<a href=\"#{absolute_url(paginate['previous']['url'])}\" class=\"prev_page\">#{previous_label}</a>"
           end)
 
           links = ""
           paginate['parts'].each do |part|
             links << (if part['is_link']
-              "<a href=\"#{part['url']}\">#{part['title']}</a>"
+              "<a href=\"#{absolute_url(part['url'])}\">#{part['title']}</a>"
             elsif part['hellip_break']
               "<span class=\"gap\">#{part['title']}</span>"
             else
@@ -99,7 +119,7 @@ module Locomotive
           next_link = (if paginate['next'].blank?
             "<span class=\"disabled next_page\">#{next_label}</span>"
           else
-            "<a href=\"#{paginate['next']['url']}\" class=\"next_page\">#{next_label}</a>"
+            "<a href=\"#{absolute_url(paginate['next']['url'])}\" class=\"next_page\">#{next_label}</a>"
           end)
 
           %{<div class="pagination #{options[:css]}">
@@ -138,6 +158,10 @@ module Locomotive
 
         def asset_url(path)
           ThemeAssetUploader.url_for(@context.registers[:site], path)
+        end
+
+        def absolute_url(url)
+          url.starts_with('/') ? url : "/#{url}"
         end
 
       end

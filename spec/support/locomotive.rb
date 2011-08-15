@@ -1,37 +1,39 @@
-Locomotive.configure do |config|
-  config.default_domain = 'example.com'
-  config.enable_logs = true
+# tiny patch to add middlewares after the initialization
+module Rails
+  class Application < Engine
+    def app
+      @app ||= begin
+        if config.middleware.respond_to?(:merge_into)
+          config.middleware = config.middleware.merge_into(default_middleware_stack)
+        end
+        config.middleware.build(routes)
+      end
+    end
+  end
 end
 
-module Locomotive
-  class TestController < ApplicationController
 
-    include Locomotive::Render
-
-    attr_accessor :output, :status, :current_site, :current_admin
-
-    def render(options = {})
-      self.output = options[:text]
-      self.status = options[:status]
+def Locomotive.configure_for_test(force = false)
+  Locomotive.configure do |config|
+    config.multi_sites do |multi_sites|
+      multi_sites.domain = 'example.com'
+      multi_sites.reserved_subdomains = %w(www admin email blog webmail mail support help site sites)
     end
 
-    def response
-      @_response ||= TestResponse.new
+    config.hosting = :none
+
+    config.enable_logs = true
+
+    if force
+      ENV['APP_TLD'] = ENV['HEROKU_SLUG'] = ENV['APP_NAME'] = ENV['HEROKU_LOGIN'] = ENV['HEROKU_PASSWORD'] = nil
+
+      Locomotive.define_subdomain_and_domains_options
+
+      Object.send(:remove_const, 'Site') if Object.const_defined?('Site')
+      load 'site.rb'
+
+      FactoryGirl.factories.clear
+      load File.join(Rails.root, 'spec', 'factories.rb')
     end
-
-    def request
-      @_request ||= TestRequest.new
-    end
-
-  end
-
-  class TestResponse < ActionDispatch::TestResponse
-
-  end
-
-  class TestRequest < ActionDispatch::TestRequest
-
-    attr_accessor :fullpath
-
   end
 end

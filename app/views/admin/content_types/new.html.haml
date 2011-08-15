@@ -3,6 +3,9 @@
 - content_for :submenu do
   = render 'admin/shared/menu/contents'
 
+- content_for :actions do
+  = render 'admin/shared/actions/contents'
+
 %p!= t('.help')
 
 = semantic_form_for @content_type, :url => admin_content_types_url do |f|
@@ -11,4 +14,4 @@
 
   = render 'admin/shared/form_actions', :back_url => admin_pages_url, :button_label => :create
 
-= render 'admin/custom_fields/edit_field'
+= render 'admin/custom_fields/edit_field', :content_type => @content_type

@@ -70,11 +70,11 @@ describe Page do
     it 'should have normalized slug' do
       page = Factory.build(:page, :slug => ' Valid  ité.html ')
       page.valid?
-      page.slug.should == 'Valid_ite'
+      page.slug.should == 'valid-ite-html'
 
       page = Factory.build(:page, :title => ' Valid  ité.html ', :slug => nil, :site => page.site)
       page.should be_valid
-      page.slug.should == 'Valid_ite'
+      page.slug.should == 'valid-ite-html'
     end
 
     it 'has no cache strategy' do
@@ -143,18 +143,6 @@ describe Page do
       archives.children.last.depth.should == 2
       archives.children.last.position.should == 2
       archives.children.last.children.first.depth.should == 3
-    end
-
-    it 'should generate a path / url from parents' do
-      @home.fullpath.should == 'index'
-      @home.url.should == 'http://acme.example.com/index.html'
-
-      @child_1.fullpath.should == 'foo'
-      @child_1.url.should == 'http://acme.example.com/foo.html'
-
-      nested_page = Factory(:page, :title => 'Sub sub page 1', :slug => 'bar', :parent => @child_1, :site => @home.site)
-      nested_page.fullpath.should == 'foo/bar'
-      nested_page.url.should == 'http://acme.example.com/foo/bar.html'
     end
 
     it 'should destroy descendants as well' do
@@ -241,8 +229,11 @@ describe Page do
       @page.redirect_url = "invalid url with spaces"
       @page.should_not be_valid
       @page.errors[:redirect_url].should == ["is invalid"]
-
     end
+  end
 
+  after(:all) do
+    ENV['APP_TLD'] = nil
+    Locomotive.configure_for_test(true)
   end
 end

@@ -2,18 +2,28 @@ module Locomotive
   class Configuration
 
     @@defaults = {
-      :name             => 'LocomotiveApp',
-      :default_domain   => 'example.com',
-      :reserved_subdomains => %w{www admin email blog webmail mail support help site sites},
-      # :forbidden_paths  => %w{layouts snippets stylesheets javascripts assets admin system api},
-      :reserved_slugs   => %w{stylesheets javascripts assets admin images api pages edit},
-      :locales          => %w{en de fr pt-BR},
-      :cookie_key       => '_locomotive_session',
-      :enable_logs      => false,
-      :heroku           => false,
-      :delayed_job      => true,
-      :default_locale   => :en,
-      :mailer_sender    => 'support@example.com'
+      :name                   => 'LocomotiveApp',
+      :domain                 => 'example.com',
+      :reserved_subdomains    => %w{www admin email blog webmail mail support help site sites},
+      # :forbidden_paths      => %w{layouts snippets stylesheets javascripts assets admin system api},
+      :reserved_slugs         => %w{stylesheets javascripts assets admin images api pages edit},
+      :locales                => %w{en de fr pt-BR it nl es},
+      :cookie_key             => '_locomotive_session',
+      :enable_logs            => false,
+      :hosting                => :auto,
+      :delayed_job            => false,
+      :default_locale         => :en,
+      :mailer_sender          => 'support', #support@example.com'
+      :manage_subdomain       => false,
+      :manage_manage_domains  => false,
+      :lastest_items_nb       => 5,
+      :rack_cache             => {
+        :verbose     => true,
+        :metastore   => URI.encode("file:#{Rails.root}/tmp/dragonfly/cache/meta"), # URI encoded in case of spaces
+        :entitystore => URI.encode("file:#{Rails.root}/tmp/dragonfly/cache/body")
+      },
+      :devise_modules             => [:database_authenticatable, :recoverable, :rememberable, :trackable, :validatable, :encryptable, { :encryptor => :sha1 }],
+      :context_assign_extensions  => {  }
     }
 
     cattr_accessor :settings
@@ -24,6 +34,34 @@ module Locomotive
 
     def self.settings
       @@settings
+    end
+
+    def multi_sites?
+      self.multi_sites != false
+    end
+
+    def manage_subdomain?
+      self.manage_subdomain == true
+    end
+
+    def manage_domains?
+      self.manage_domains == true
+    end
+
+    def manage_subdomain_n_domains?
+      self.manage_subdomain? && self.manage_domains?
+    end
+
+    def reserved_subdomains
+      if self.multi_sites?
+        if self.multi_sites.reserved_subdomains.blank?
+          @@defaults[:reserved_subdomains]
+        else
+          self.multi_sites.reserved_subdomains
+        end
+      else
+        []
+      end
     end
 
     def method_missing(name, *args, &block)
@@ -55,7 +93,14 @@ module Locomotive
     # retrieves the specified key and yields it
     # if a block is provided
     def [](key, &block)
-      block_given? ? yield(super(key)) : super(key)
+      if block_given?
+        self.delete(key) unless super(key).respond_to?(:keys)
+        yield(super(key))
+      else
+        super(key)
+      end
+
+      # block_given? ? yield(super(key)) : super(key)
     end
 
     # provides member-based access to keys

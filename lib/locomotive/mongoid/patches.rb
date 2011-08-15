@@ -79,6 +79,7 @@ module Mongoid #:nodoc:
         # limit for embedded collections ?
         if limits && limits.size > 0
           limits.each do |field, limit|
+            next if limit.blank?
             options[:fields][field] = { '$slice' => limit }
           end
         end
@@ -87,5 +88,21 @@ module Mongoid #:nodoc:
       end
 
     end
+  end
+
+
+  # without callback feature
+  module Callbacks
+
+    module ClassMethods
+
+      def without_callback(*args, &block)
+        skip_callback(*args)
+        yield
+        set_callback(*args)
+      end
+
+    end
+
   end
 end

@@ -3,13 +3,14 @@ class Page
   include Locomotive::Mongoid::Document
 
   ## Extensions ##
-  include Models::Extensions::Page::Tree
-  include Models::Extensions::Page::EditableElements
-  include Models::Extensions::Page::Parse
-  include Models::Extensions::Page::Render
-  include Models::Extensions::Page::Templatized
-  include Models::Extensions::Page::Redirect
-  include Models::Extensions::Page::Listed
+  include Extensions::Page::Tree
+  include Extensions::Page::EditableElements
+  include Extensions::Page::Parse
+  include Extensions::Page::Render
+  include Extensions::Page::Templatized
+  include Extensions::Page::Redirect
+  include Extensions::Page::Listed
+  include Extensions::Shared::Seo
 
   ## fields ##
   field :title
@@ -44,7 +45,7 @@ class Page
   scope :not_found, :where => { :slug => '404', :depth => 0 }
   scope :published, :where => { :published => true }
   scope :fullpath, lambda { |fullpath| { :where => { :fullpath => fullpath } } }
-  scope :minimal_attributes, :only => %w(title slug fullpath position depth published templatized listed parent_id created_at updated_at)
+  scope :minimal_attributes, :only => %w(title slug fullpath position depth published templatized redirect listed parent_id created_at updated_at)
 
   ## methods ##
 
@@ -74,10 +75,6 @@ class Page
     end
   end
 
-  def url
-    "http://#{self.site.domains.first}/#{self.fullpath}.html"
-  end
-
   def with_cache?
     self.cache_strategy != 'none'
   end
@@ -100,7 +97,7 @@ class Page
 
   def normalize_slug
     self.slug = self.title.clone if self.slug.blank? && self.title.present?
-    self.slug.slugify!(:without_extension => true) if self.slug.present?
+    self.slug.permalink! if self.slug.present?
   end
 
   def set_default_raw_template

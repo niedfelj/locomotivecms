@@ -15,11 +15,16 @@ require 'custom_fields'
 require 'mimetype_fu'
 require 'actionmailer_with_request'
 require 'heroku'
+require 'bushido'
 require 'httparty'
 require 'redcloth'
 require 'delayed_job_mongoid'
 require 'zip/zipfilesystem'
 require 'jammit-s3'
+require 'dragonfly'
+require 'cancan'
+require 'RMagick'
+require 'cells'
 
 $:.unshift File.dirname(__FILE__)
 
@@ -28,12 +33,12 @@ module Locomotive
 
     config.autoload_once_paths += %W( #{config.root}/app/controllers #{config.root}/app/models #{config.root}/app/helpers #{config.root}/app/uploaders)
 
-    rake_tasks do
-      load "railties/tasks.rake"
+    initializer "locomotive.cells" do |app|
+      Cell::Base.prepend_view_path("#{config.root}/app/cells")
     end
 
-    initializer "serving fonts" do |app|
-      app.middleware.insert_after Rack::Lock, '::Locomotive::Middlewares::Fonts', :path => %r{^/fonts}
+    rake_tasks do
+      load "railties/tasks.rake"
     end
 
   end

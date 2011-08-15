@@ -9,13 +9,29 @@ Factory.define "test site", :parent => :site do |s|
   s.name 'Locomotive test website'
   s.subdomain 'test'
   s.after_build do |site_test|
-    site_test.memberships.build :account => Account.where(:name => "Admin").first || Factory("admin user"), :admin => true
+    site_test.memberships.build :account => Account.where(:name => "Admin").first || Factory("admin user"), :role => 'admin'
   end
 end
 
 Factory.define "another site", :parent => "test site" do |s|
   s.name "Locomotive test website #2"
   s.subdomain "test2"
+end
+
+Factory.define "existing site", :parent => "site" do |s|
+  s.name "Locomotive site with existing models"
+  s.subdomain "models"
+  s.after_build do |site_with_models|
+    site_with_models.content_types.build(
+      :slug => 'projects',
+      :name => 'Existing name',
+      :description => 'Existing description',
+      :order_by => 'created_at')
+  end
+end
+
+Factory.define "valid site", :parent => "site" do |s|
+  # s.after_build { |valid_site| valid_site.stubs(:valid?).returns(true) }
 end
 
 
@@ -45,11 +61,32 @@ Factory.define "brazillian user", :parent => :account do |a|
   a.locale 'pt-BR'
 end
 
+Factory.define "italian user", :parent => :account do |a|
+  a.name "Paolo Rossi"
+  a.email "paolo@paolo-rossi.it"
+  a.locale 'it'
+end
+
 
 ## Memberships ##
 Factory.define :membership do |m|
-  m.admin true
-  m.account{ Account.where(:name => "Bart Simpson").first || Factory(:account) }
+  m.role 'admin'
+  m.account { Account.where(:name => "Bart Simpson").first || Factory('admin user') }
+end
+
+Factory.define :admin, :parent => :membership do |m|
+  m.role 'admin'
+  m.account { Factory('admin user', :locale => 'en') }
+end
+
+Factory.define :designer, :parent => :membership do |m|
+  m.role 'designer'
+  m.account { Factory('frenchy user', :locale => 'en') }
+end
+
+Factory.define :author, :parent => :membership do |m|
+  m.role 'author'
+  m.account { Factory('brazillian user', :locale => 'en') }
 end
 
 
@@ -71,16 +108,15 @@ Factory.define :snippet do |s|
 end
 
 
-## Theme assets ##
-Factory.define :theme_asset do |a|
+## Assets ##
+Factory.define :asset do |a|
   a.site { Site.where(:subdomain => "acme").first || Factory(:site) }
 end
 
 
-## Asset collections ##
-Factory.define :asset_collection do |s|
-  s.name 'Trip to Chicago'
-  s.site { Site.where(:subdomain => "acme").first || Factory(:site) }
+## Theme assets ##
+Factory.define :theme_asset do |a|
+  a.site { Site.where(:subdomain => "acme").first || Factory(:site) }
 end
 
 

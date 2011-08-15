@@ -18,8 +18,10 @@ describe 'Heroku support' do
     end
 
     it 'does not add instance methods to Site' do
-      Site.instance_methods.include?(:add_heroku_domains).should be_false
-      Site.instance_methods.include?(:remove_heroku_domains).should be_false
+      Site.should_not include_instance_method :add_heroku_domains
+      Site.should_not include_instance_method :remove_heroku_domains
+
+      Site.should_not include_class_method :create_first_one_with_heroku
     end
 
   end
@@ -28,12 +30,12 @@ describe 'Heroku support' do
 
     before(:each) do
       Locomotive.configure do |config|
-        config.heroku = false
+        config.hosting = :none
       end
     end
 
     it 'has a nil connection' do
-      Locomotive.heroku_connection.should be_nil
+      Locomotive.respond_to?(:heroku_connection).should be_false
     end
 
     it 'tells heroku is disabled' do
@@ -41,15 +43,26 @@ describe 'Heroku support' do
     end
 
     it 'does not add methods to Site' do
-      Site.instance_methods.include?(:add_heroku_domains).should be_false
-      Site.instance_methods.include?(:remove_heroku_domains).should be_false
+      Site.should_not include_instance_method :add_heroku_domains
+      Site.should_not include_instance_method :remove_heroku_domains
     end
 
   end
 
   context '#enabled' do
 
-    it 'tells heroku is disabled' do
+    it 'tells heroku is enabled from ENV' do
+      ENV['HEROKU_SLUG'] = 'test'
+      Locomotive.config.hosting = :auto
+      Locomotive.heroku?.should be_true
+    end
+
+    it 'adds a method to automatically create a site with Heroku settings' do
+      configure_locomotive_with_heroku
+      Site.should include_class_method :create_first_one_with_heroku
+    end
+
+    it 'tells heroku is enabled when forcing it' do
       configure_locomotive_with_heroku
       Locomotive.heroku?.should be_true
     end
@@ -69,8 +82,9 @@ describe 'Heroku support' do
       end
 
       it 'opens a heroku connection with env credentials' do
-        ENV['HEROKU_LOGIN'] = 'john@doe.net'; ENV['HEROKU_PASSWORD'] = 'easyone'
-        Locomotive.configure { |config| config.heroku = true }
+        ::Heroku::Client.any_instance.stubs(:list_domains).returns([])
+        ENV['HEROKU_LOGIN'] = 'john@doe.net'; ENV['HEROKU_PASSWORD'] = 'easyone'; ENV['APP_NAME'] = 'test'
+        Locomotive.configure { |config| config.hosting = :heroku; config.heroku = {} }
         Locomotive.heroku_connection.user.should == 'john@doe.net'
         Locomotive.heroku_connection.password.should == 'easyone'
       end
@@ -81,7 +95,9 @@ describe 'Heroku support' do
 
       before(:each) do
         configure_locomotive_with_heroku
-        (@site = Factory.build(:site)).stubs(:valid?).returns(true)
+        # (@site = Factory.stub(:site)).stubs(:valid?).returns(true)
+        @site = Factory.build('valid site')
+        # (@site = Site.new(:name => 'foobar', :subdomain => 'acme')).stubs(:valid?).returns(true)
       end
 
       it 'calls add_heroku_domains after saving a site' do
@@ -138,12 +154,29 @@ describe 'Heroku support' do
   end
 
   def configure_locomotive_with_heroku(options = {}, domains = nil)
-    ::Heroku::Client.any_instance.stubs(:list_domains).with('locomotive').returns(domains || [
+    if options.has_key?(:name)
+      ENV['APP_NAME'] = options.delete(:name)
+    else
+      ENV['APP_NAME'] = 'locomotive'
+    end
+
+    ::Heroku::Client.any_instance.stubs(:list_domains).with(ENV['APP_NAME']).returns(domains || [
       { :domain => "www.acme.com" }, { :domain => "example.com" }, { :domain => "www.example.com" }
     ])
+
     Locomotive.configure do |config|
-      config.heroku = { :name => 'locomotive', :login => 'john@doe.net', :password => 'easyone' }.merge(options)
+      config.hosting = :heroku
+      config.heroku = { :login => 'john@doe.net', :password => 'easyone' }.merge(options)
+
+      Locomotive.define_subdomain_and_domains_options
+
+      Object.send(:remove_const, 'Site') if Object.const_defined?('Site')
+      load 'site.rb'
     end
+  end
+
+  after(:all) do
+    Locomotive.configure_for_test(true)
   end
 
 end
